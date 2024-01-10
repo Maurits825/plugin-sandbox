@@ -10,6 +10,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -34,11 +35,25 @@ public class VisualizerPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		if (client.getGameState() == GameState.LOGGED_IN)
+		{
+			clientThread.invokeLater(() ->
+			{
+				visualizerAnimation.reset();
+				visualizerAnimation.initialize(config.size());
+				return true;
+			});
+		}
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
+		clientThread.invokeLater(() ->
+		{
+			visualizerAnimation.reset();
+			return true;
+		});
 	}
 
 	@Subscribe
@@ -46,6 +61,7 @@ public class VisualizerPlugin extends Plugin
 	{
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
 		{
+			visualizerAnimation.reset();
 			visualizerAnimation.initialize(config.size());
 		}
 	}
@@ -54,6 +70,20 @@ public class VisualizerPlugin extends Plugin
 	public void onClientTick(ClientTick event)
 	{
 		visualizerAnimation.animateGrid();
+	}
+
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged configChanged)
+	{
+		if (configChanged.getGroup().equals(VisualizerConfig.GROUP))
+		{
+			clientThread.invokeLater(() ->
+			{
+				visualizerAnimation.reset();
+				return true;
+			});
+		}
 	}
 
 	@Provides

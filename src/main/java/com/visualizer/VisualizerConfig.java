@@ -4,9 +4,11 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("visualizer")
+@ConfigGroup(VisualizerConfig.GROUP)
 public interface VisualizerConfig extends Config
 {
+	String GROUP = "visualizerconfig";
+
 	@ConfigItem(
 		keyName = "size",
 		name = "Grid size",

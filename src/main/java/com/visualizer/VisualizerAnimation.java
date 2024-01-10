@@ -38,6 +38,69 @@ public class VisualizerAnimation
 		spawnGridTiles();
 	}
 
+	public void reset()
+	{
+		clearTiles();
+	}
+
+	public void animateGrid()
+	{
+		if (tiles == null)
+		{
+			return;
+		}
+
+		animateCircle();
+	}
+
+	private void animateCircle()
+	{
+		int amplitude = 200;
+		int offset = 1000;
+		double period = 100d;
+		double periodToSee = 1.4d;
+		double speed = 1 / 50d;
+		double t = (System.currentTimeMillis() * speed) % period;
+
+		double minAmplitude = -amplitude - (amplitude / 2d) - offset;
+		double maxAmplitude = amplitude - (amplitude / 2d) - offset;
+		for (int x = 0; x < gridSize; x++)
+		{
+			for (int y = 0; y < gridSize; y++)
+			{
+//				double xWeight = x + y;
+				double xWeight = Math.sqrt(Math.pow(x - gridSize / 2f, 2) + Math.pow(y - gridSize / 2f, 2));
+//				double xWeight = Math.sqrt(Math.pow(x - 15, 2) + Math.pow(y - 15, 2));
+				double xInterval = (periodToSee * period) / gridSize;
+				double input = (t + (xWeight * xInterval)) * 2d * Math.PI * (1.0d / period);
+				int translateY = (int) (amplitude * Math.sin(input)) - (amplitude / 2) - offset;
+
+//				log.debug(String.valueOf(translateY));
+				ModelData tileCopy;
+
+				int scale = (int) mapToRange(translateY, minAmplitude, maxAmplitude, 0, 20);
+				tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices()
+					.translate(0, translateY, 0).scale(128 + scale, 128, 128 + scale);
+//				if ((x + y) % 2 == 0)
+//				{
+//					tileCopy = tileModel1.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
+//				}
+//				else
+//				{
+//					tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
+//				}
+
+				int rgb = (int) mapToRange(translateY, minAmplitude, maxAmplitude, 40, 230);
+				tileCopy.recolor(tileCopy.getFaceColors()[33],
+					JagexColor.rgbToHSL(new Color(255 - rgb, rgb, 150).getRGB(), ((x + y) % 2 == 0) ? 1.0d : 1d));
+				tiles[x][y].setModel(tileCopy.light());
+//				int angle = (int) mapToRange(translateY, minAmplitude, maxAmplitude, 0, 2047 / 4);
+				int angle = 0;
+				tiles[x][y].setOrientation(angle);
+			}
+		}
+	}
+
 	private void spawnGridTiles()
 	{
 		int tileObjectId;
@@ -59,52 +122,25 @@ public class VisualizerAnimation
 		}
 	}
 
-	public void animateGrid()
+	private void clearTiles()
 	{
 		if (tiles == null)
 		{
 			return;
 		}
 
-		int amplitude = 200;
-		int offset = 1000;
-		double period = 100d;
-		double periodToSee = 1.2d;
-		double speed = 1 / 50d;
-		double t = (System.currentTimeMillis() * speed) % period;
-		int squareWave = (int) ((System.currentTimeMillis() / 2000d) % 2);
-//		log.debug(String.valueOf(squareWave));
 		for (int x = 0; x < gridSize; x++)
 		{
 			for (int y = 0; y < gridSize; y++)
 			{
-//				double xWeight = x + y;
-				double xWeight = Math.sqrt(Math.pow(x - gridSize / 2f, 2) + Math.pow(y - gridSize / 2f, 2));
-//				double xWeight = Math.sqrt(Math.pow(x - 15, 2) + Math.pow(y - 15, 2));
-				double xInterval = (periodToSee * period) / gridSize;
-				double input = (t + (xWeight * xInterval)) * 2d * Math.PI * (1.0d / period);
-				int translateY = (int) (squareWave * amplitude * Math.sin(input)) - (amplitude / 2) - offset;
-//				translateY = (int) (translateY + ((amplitude * Math.sin(input)) - (amplitude / 2) - offset));
-
-//				log.debug(String.valueOf(translateY));
-				ModelData tileCopy;
-
-				tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
-//				if ((x + y) % 2 == 0)
-//				{
-//					tileCopy = tileModel1.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
-//				}
-//				else
-//				{
-//					tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
-//				}
-
-				int rgb = (int) mapToRange(translateY, -amplitude - (amplitude / 2d) - offset, amplitude - (amplitude / 2d) - offset, 40, 230);
-				tileCopy.recolor(tileCopy.getFaceColors()[33],
-					JagexColor.rgbToHSL(new Color(255 - rgb, rgb, 150).getRGB(), ((x + y) % 2 == 0) ? 1.0d : 0.7d));
-				tiles[x][y].setModel(tileCopy.light());
+				if (tiles[x][y] != null)
+				{
+					tiles[x][y].setActive(false);
+				}
 			}
 		}
+
+		tiles = null;
 	}
 
 	private static double mapToRange(double value, double inputMin, double inputMax, double outputMin, double outputMax)
@@ -115,7 +151,7 @@ public class VisualizerAnimation
 		return outputMin + normalizedValue * (outputMax - outputMin);
 	}
 
-	public static WorldPoint getWallStartPoint(WorldPoint playerWorldPosition, int gameSize)
+	private static WorldPoint getWallStartPoint(WorldPoint playerWorldPosition, int gameSize)
 	{
 		int offset = (int) Math.ceil(gameSize / 2.0f);
 		return playerWorldPosition.dx(-offset).dy(offset);
