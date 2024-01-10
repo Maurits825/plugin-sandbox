@@ -5,6 +5,7 @@ import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.JagexColor;
 import net.runelite.api.ModelData;
+import net.runelite.api.Perspective;
 import net.runelite.api.RuneLiteObject;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
@@ -67,8 +68,14 @@ public class VisualizerAnimation
 			return;
 		}
 
-		animatePhysics();
+		LocalPoint playerLocalLocation = client.getLocalPlayer().getLocalLocation();
+		LocalPoint start = LocalPoint.fromWorld(client, wallStartPoint);
+		double playerX = (playerLocalLocation.getX() - start.getX() - 1) / (double) Perspective.LOCAL_TILE_SIZE;
+		double playerY = (start.getY() - playerLocalLocation.getY() - 1) / (double) Perspective.LOCAL_TILE_SIZE;
+		animateCircle(playerX, playerY);
 //		animateCircle();
+
+//		animatePhysics();
 	}
 
 	private void animatePhysics()
@@ -103,11 +110,16 @@ public class VisualizerAnimation
 
 	private void animateCircle()
 	{
+		animateCircle(gridSize / 2f, gridSize / 2f);
+	}
+
+	private void animateCircle(double centerX, double centerY)
+	{
 		int amplitude = 200;
 		int offset = 1000;
 		double period = 100d;
-		double periodToSee = 1.4d;
-		double speed = 1 / 50d;
+		double periodToSee = 2.4d;
+		double speed = 1 / 40d;
 		double t = (System.currentTimeMillis() * speed) % period;
 
 		double minAmplitude = -amplitude - (amplitude / 2d) - offset;
@@ -117,7 +129,7 @@ public class VisualizerAnimation
 			for (int y = 0; y < gridSize; y++)
 			{
 //				double xWeight = x + y;
-				double xWeight = Math.sqrt(Math.pow(x - gridSize / 2f, 2) + Math.pow(y - gridSize / 2f, 2));
+				double xWeight = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 //				double xWeight = Math.sqrt(Math.pow(x - 15, 2) + Math.pow(y - 15, 2));
 				double xInterval = (periodToSee * period) / gridSize;
 				double input = (t + (xWeight * xInterval)) * 2d * Math.PI * (1.0d / period);
