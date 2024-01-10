@@ -6,6 +6,7 @@ import net.runelite.api.Client;
 import net.runelite.api.JagexColor;
 import net.runelite.api.ModelData;
 import net.runelite.api.RuneLiteObject;
+import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 
 public class VisualizerAnimation
@@ -18,9 +19,13 @@ public class VisualizerAnimation
 	private int gridSize;
 	private RuneLiteObject[][] tiles;
 	private WorldPoint wallStartPoint;
+	private LocalPoint gridStartInScene;
+	private PhysicBody[][] physicBodies;
 
 	private ModelData tileModel1;
 	private ModelData tileModel2;
+
+	private long lastTime;
 
 	private static final int TILE_ID_1 = 45510;
 	private static final int TILE_ID_2 = 45432;
@@ -32,8 +37,20 @@ public class VisualizerAnimation
 		tileModel1 = client.loadModelData(TILE_ID_1);
 		tileModel2 = client.loadModelData(TILE_ID_2);
 
+		lastTime = System.nanoTime();
+
 		tiles = new RuneLiteObject[size][size];
-		wallStartPoint = VisualizerAnimation.getWallStartPoint(client.getLocalPlayer().getWorldLocation(), size);
+		physicBodies = new PhysicBody[size][size];
+
+		for (int x = 0; x < gridSize; x++)
+		{
+			for (int y = 0; y < gridSize; y++)
+			{
+				physicBodies[x][y] = new PhysicBody(Vector.zero(), Vector.zero());
+			}
+		}
+		wallStartPoint = VisualizerUtils.getWallStartPoint(client.getLocalPlayer().getWorldLocation(), size);
+		gridStartInScene = VisualizerUtils.getWorldPointLocationInScene(client, wallStartPoint.dx(1).dy(-1));
 
 		spawnGridTiles();
 	}
@@ -50,7 +67,38 @@ public class VisualizerAnimation
 			return;
 		}
 
-		animateCircle();
+		animatePhysics();
+//		animateCircle();
+	}
+
+	private void animatePhysics()
+	{
+		double deltaTime = (System.nanoTime() - lastTime) / 1000_000_000D;
+		lastTime = System.nanoTime();
+
+		double gravity = -50;
+
+		WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
+		int playerX = playerLocation.getX() - wallStartPoint.getX() - 1;
+		int playerY = wallStartPoint.getY() - playerLocation.getY() - 1;
+
+		for (int x = 0; x < gridSize; x++)
+		{
+			for (int y = 0; y < gridSize; y++)
+			{
+//				double forceY = 800D / (Math.sqrt(Math.pow(x - playerX, 4) + Math.pow(y - playerY, 4)) + 1);
+				double forceY = (playerX == x && playerY == y) ? 500 : 0;
+				physicBodies[x][y].applyForce(new Vector(0, forceY + gravity, 0), deltaTime);
+
+				int tileHeight = (int) physicBodies[x][y].getPosition().y;
+				ModelData tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices()
+					.translate(0, -tileHeight, 0);
+				int rgb = (int) VisualizerUtils.mapToRange(tileHeight, 0, 500, 20, 220);
+				tileCopy.recolor(tileCopy.getFaceColors()[33],
+					JagexColor.rgbToHSL(new Color(255 - rgb, rgb, 200).getRGB(), ((x + y) % 2 == 0) ? 1.0d : 1.0d));
+				tiles[x][y].setModel(tileCopy.light());
+			}
+		}
 	}
 
 	private void animateCircle()
@@ -78,7 +126,7 @@ public class VisualizerAnimation
 //				log.debug(String.valueOf(translateY));
 				ModelData tileCopy;
 
-				int scale = (int) mapToRange(translateY, minAmplitude, maxAmplitude, 0, 20);
+				int scale = (int) VisualizerUtils.mapToRange(translateY, minAmplitude, maxAmplitude, 0, 20);
 				tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices()
 					.translate(0, translateY, 0).scale(128 + scale, 128, 128 + scale);
 //				if ((x + y) % 2 == 0)
@@ -90,7 +138,7 @@ public class VisualizerAnimation
 //					tileCopy = tileModel2.shallowCopy().cloneColors().cloneVertices().translate(0, translateY, 0);
 //				}
 
-				int rgb = (int) mapToRange(translateY, minAmplitude, maxAmplitude, 40, 230);
+				int rgb = (int) VisualizerUtils.mapToRange(translateY, minAmplitude, maxAmplitude, 40, 230);
 				tileCopy.recolor(tileCopy.getFaceColors()[33],
 					JagexColor.rgbToHSL(new Color(255 - rgb, rgb, 150).getRGB(), ((x + y) % 2 == 0) ? 1.0d : 1d));
 				tiles[x][y].setModel(tileCopy.light());
@@ -141,19 +189,5 @@ public class VisualizerAnimation
 		}
 
 		tiles = null;
-	}
-
-	private static double mapToRange(double value, double inputMin, double inputMax, double outputMin, double outputMax)
-	{
-		value = Math.min(Math.max(value, inputMin), inputMax);
-		double normalizedValue = (value - inputMin) / (inputMax - inputMin);
-
-		return outputMin + normalizedValue * (outputMax - outputMin);
-	}
-
-	private static WorldPoint getWallStartPoint(WorldPoint playerWorldPosition, int gameSize)
-	{
-		int offset = (int) Math.ceil(gameSize / 2.0f);
-		return playerWorldPosition.dx(-offset).dy(offset);
 	}
 }
